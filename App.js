@@ -1,10 +1,40 @@
 import React from 'react';
-import { Dimensions, FlatList, StyleSheet, Text, TouchableHighlight, View } from 'react-native';
 
-export default class App extends React.Component {
+import {
+  Dimensions,
+  FlatList,
+  StyleSheet,
+  Text,
+  TouchableHighlight,
+  View
+} from 'react-native';
+
+// Native-like cross platform navigation
+import { StackNavigator } from 'react-navigation';
+
+// A best practice: always wrap simple built-in components
+// to allow customization and avoid search/replace refactoring later.
+// Here it's used for add a capitalization feature.
+
+const DogText = (props) => {
+  let text = props.children;
+  if (props.caps) {
+    text = props.children.slice(0,1).toUpperCase() + props.children.slice(1, props.children.length);
+  }
+
+  return <Text {...props}>{text}</Text>;
+}
+
+class BreedList extends React.Component {
+
+  // Set initial state, to be updated by the network fetch when the component mounts
+
   state = {
     breeds: []
   };
+
+  // Fetch breeds using async/await for readability.
+  // Shape breed data into an array suitable for passing to FlatList
 
   async _fetchBreeds() {
     let response = await fetch("https://dog.ceo/api/breeds/list/all");
@@ -15,44 +45,86 @@ export default class App extends React.Component {
     this.setState({breeds: breeds});
   }
 
+  // Only fetch breeds if this component is not being used at the second navigation level.
+
   componentWillMount() {
-    this._fetchBreeds();
+    if (!this.props.breeds) {
+      this._fetchBreeds();
+    }
   }
 
-  _renderBreed({item, separators}) {
+  _onPress = (breed) => {
+    if (breed.types && breed.types.length > 0) {
+      this.props.navigation.navigate('Types', {breeds: breed.types});
+    }
+  }
+
+  // Only render the navigation arrow when there are breed subtypes
+
+  _renderArrow(item) {
+    if (item.types && item.types.length > 0) return <DogText style={styles.arrow}>></DogText>;
+  }
+
+  _renderBreed = ({item}) => {
     return (
       <TouchableHighlight
-        style={styles.breed}
-        onPress={() => this._onPress(item.name)}>
-        <View>
-          <Text>{item.name}</Text>
+        onPress={() => this._onPress(item)}>
+        <View style={styles.breedRow}>
+          <DogText caps style={styles.breedText}>{item.name ? item.name : item}</DogText>
+          {this._renderArrow(item)}
         </View>
       </TouchableHighlight>
     );
   }
 
   render() {
+    let { params } = this.props.navigation.state;
+
+    // Render top level breeds unless we are being passed an explicit list of breeds.
+    let breeds = params ? params.breeds : this.state.breeds;
+
     return (
-      <View style={styles.container}>
         <FlatList
-          contentContainerStyle={styles.container}
-          data={this.state.breeds}
+          data={breeds}
           renderItem={this._renderBreed}
-          keyExtractor={(item, index) => item.name}
+          keyExtractor={(item, index) => item.name || item}
         />
-      </View>
     );
   }
 }
+
+// Setup two navigation levels for top level breeds and breed types, but reuse the component for displaying them
+
+export default StackNavigator(
+  {
+    Breeds: {
+      screen: BreedList,
+    },
+    Types: {
+      screen: BreedList
+    }
+  },
+  {
+    initialRouteName: 'Breeds',
+  }
+);
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#fff',
-    marginTop: 24
   },
-  breed: {
-    paddingVertical: 10,
-    borderBottomWidth: 1
+  breedRow: {
+    borderBottomWidth: 1,
+    padding: 10,
+    flexDirection: "row",
+    justifyContent: "space-between"
+  },
+  breedText: {
+    fontSize: 18
+  },
+  arrow: {
+    fontWeight: "bold",
+    fontSize: 20
   }
 });
