@@ -1,6 +1,7 @@
 import React from 'react';
 
 import {
+  Image,
   FlatList,
   StyleSheet,
   Text,
@@ -41,11 +42,23 @@ class BreedList extends React.Component {
   // Set initial state, to be updated by the network fetch when the component mounts
 
   state = {
-    breeds: []
+    breeds: [],
+    breedImages: {}
   };
 
   // Fetch breeds using async/await for readability.
   // Shape breed data into an array suitable for passing to FlatList
+
+  async _fetchBreedImages(breed) {
+    let response = await fetch(`https://dog.ceo/api/breed/${breed.name}/images`);
+    let responseJson = await response.json();
+    let fetched = {[breed.name]: responseJson.message[0]};
+    this.setState({breedImages: {...this.state.breedImages, ...fetched}})
+  }
+
+  _fetchAllBreedImages() {
+    this.state.breeds.forEach(breed => this._fetchBreedImages(breed));
+  }
 
   async _fetchBreeds() {
     let response = await fetch("https://dog.ceo/api/breeds/list/all");
@@ -53,7 +66,7 @@ class BreedList extends React.Component {
     let breeds = Object.keys(responseJson.message).map((name) => {
       return {name: name, types: responseJson.message[name]};
     });
-    this.setState({breeds: breeds});
+    this.setState({breeds: breeds}, this._fetchAllBreedImages);
   }
 
   // Only fetch breeds if this component is not being used at the second navigation level.
@@ -66,7 +79,10 @@ class BreedList extends React.Component {
 
   _onPress = (breed) => {
     if (breed.types && breed.types.length > 0) {
-      this.props.navigation.navigate('Types', {breeds: breed.types, title: `Dogify: ${capitalize(breed.name)} Types`});
+      this.props.navigation.navigate('Types', {
+        breeds: breed.types,
+        breedImages: this.state.breedImages,
+        title: `Dogify: ${capitalize(breed.name)} Types`});
     }
   }
 
@@ -76,12 +92,25 @@ class BreedList extends React.Component {
     if (item.types && item.types.length > 0) return <DogText style={styles.arrow}>></DogText>;
   }
 
+  _renderImage(item) {
+    const { params } = this.props.navigation.state;
+    const images = params ? params.breedImages : this.state.breedImages;
+    const image = images[item.name];
+
+      return (
+        <Image style={{height: 100, width: 100, borderRadius: 50}} source={{uri: image}} />
+      );
+  }
+
   _renderBreed = ({item}) => {
     return (
       <TouchableHighlight
         onPress={() => this._onPress(item)}>
         <View style={styles.breedRow}>
-          <DogText caps style={styles.breedText}>{item.name ? item.name : item}</DogText>
+          <View style={styles.breedContent}>
+            <DogText caps style={styles.breedText}>{item.name ? item.name : item}</DogText>
+            {this._renderImage(item)}
+          </View>
           {this._renderArrow(item)}
         </View>
       </TouchableHighlight>
@@ -98,6 +127,7 @@ class BreedList extends React.Component {
         <FlatList
           data={breeds}
           renderItem={this._renderBreed}
+          extraData={this.state}
           keyExtractor={(item, index) => item.name || item}
         />
     );
@@ -128,11 +158,20 @@ const styles = StyleSheet.create({
   breedRow: {
     borderBottomWidth: 1,
     padding: 10,
+    height: 170,
     flexDirection: "row",
-    justifyContent: "space-between"
+    justifyContent: "space-between",
+    alignItems: "center",
+    flex: 1
   },
   breedText: {
     fontSize: 18
+  },
+  breedContent: {
+    flex: 2,
+    justifyContent: "space-around",
+    alignItems: "center",
+    height: "100%"
   },
   arrow: {
     fontWeight: "bold",
