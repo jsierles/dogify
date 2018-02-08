@@ -59,7 +59,7 @@ class BreedList extends React.Component {
   // Only fetch breeds if this component is not being used at the second navigation level.
 
   componentWillMount() {
-    if (!this.props.breeds) {
+    if (!this.props.navigation.state.params) {
       this._fetchBreeds();
     }
   }
