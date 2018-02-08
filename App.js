@@ -16,16 +16,28 @@ import { StackNavigator } from 'react-navigation';
 // to allow customization and avoid search/replace refactoring later.
 // Here it's used for add a capitalization feature.
 
+function capitalize(text) {
+  return text.slice(0,1).toUpperCase() + text.slice(1, text.length);
+}
+
 const DogText = (props) => {
   let text = props.children;
   if (props.caps) {
-    text = props.children.slice(0,1).toUpperCase() + props.children.slice(1, props.children.length);
+    text = capitalize(text);
   }
 
   return <Text {...props}>{text}</Text>;
 }
 
 class BreedList extends React.Component {
+
+  static navigationOptions = ({ navigation }) => {
+    const { params } = navigation.state;
+
+    return {
+      title: params ? params.title : 'Dogify: Breeds',
+    }
+  };
 
   // Set initial state, to be updated by the network fetch when the component mounts
 
@@ -55,7 +67,7 @@ class BreedList extends React.Component {
 
   _onPress = (breed) => {
     if (breed.types && breed.types.length > 0) {
-      this.props.navigation.navigate('Types', {breeds: breed.types});
+      this.props.navigation.navigate('Types', {breeds: breed.types, title: `Dogify: ${capitalize(breed.name)} Types`});
     }
   }
 
